@@ -3,7 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { Server } from 'socket.io';
 import { createServer } from 'http';
-import connectDB from './src/config/Database';
+import connectDB from './config/Database';
 
 dotenv.config();
 
@@ -25,6 +25,12 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({extended:true}));
 
+import AuthRoutes from './routes/AuthRoutes';
+import RoomRoutes from './routes/RoomRoutes';
+
+app.use('/api/rooms', RoomRoutes);
+app.use('/api/auth', AuthRoutes);
+
 app.get('/', (req, res)=>{
     res.json({message: 'TriviaGame API is running!'});
 });
@@ -39,7 +45,13 @@ io.on('connection', (socket)=>{
     
 });
 
+import { errorHandler, notFound } from './middleware/ErrorHandler';
+app.use(notFound);
+app.use(errorHandler);
+
 const PORT = process.env.PORT || 5001;
+
+
 
 const startServer = async()=>{
     try{

@@ -80,9 +80,6 @@ const UserSchema: Schema = new Schema(
   }
 );
 
-// Create indexes for faster queries
-UserSchema.index({ email: 1 }); // Index on email (1 = ascending order)
-UserSchema.index({ username: 1 }); // Index on username
 
 // Create and export the User model
 // mongoose.model creates a model from our schema

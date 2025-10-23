@@ -1,9 +1,22 @@
 // Import mongoose and our types
-import mongoose, { Schema, Document } from 'mongoose';
+import mongoose, { Schema, Document, Model } from 'mongoose';
 import { IRoom, IPlayer, IAnswer } from '../types/Index';
 
 // Extend IRoom to work with Mongoose
-export interface IRoomDocument extends IRoom, Document {}
+export interface IRoomDocument extends IRoom, Document {
+  roomCode: string;
+  hostId: string;
+  players: IPlayer[];
+  settings: IRoom['settings'];
+  status: IRoom['status'];
+  currentQuestion: number;
+  isPublic: boolean;
+  isFull(): boolean;
+  isHost(userId: string): boolean;
+  getPlayer(userId: string): IPlayer | undefined;
+
+}
+
 
 // First, let's define the Answer sub-schema (nested inside Player)
 const AnswerSchema: Schema = new Schema(
@@ -68,8 +81,14 @@ const PlayerSchema: Schema = new Schema(
   { _id: false } // Don't create separate _id for each player
 );
 
+interface IRoomMethods {
+  isFull(): boolean;
+  isHost(userId: string): boolean;
+  getPlayer(userId: string): IPlayer | undefined;
+}
+
 // Define the main Room Schema
-const RoomSchema: Schema = new Schema(
+const RoomSchema: Schema = new Schema<IRoomDocument, {}, IRoomMethods>(
   {
     // Unique 6-character room code (like "ABC123")
     roomCode: {
@@ -167,6 +186,21 @@ const RoomSchema: Schema = new Schema(
 RoomSchema.index({ roomCode: 1, status: 1 }); // Compound index
 RoomSchema.index({ createdAt: 1 }); // Index for sorting by creation time
 
+
+// // Import required modules
+// import mongoose, { Schema, Document, Model } from 'mongoose';
+
+// interface IRoomDocument extends Document {
+//   roomCode: string;
+// }
+
+ interface IRoomModel extends Model<IRoomDocument> {
+   generateRoomCode(): Promise<string>;
+ }
+
+// // Create Room model
+// const Room = mongoose.model<IRoomDocument, IRoomModel>('Room', RoomSchema);
+
 // Add a method to generate random room codes
 RoomSchema.statics.generateRoomCode = async function(): Promise<string> {
   // Characters to use in room code (no confusing ones like 0/O, 1/I)
@@ -206,6 +240,16 @@ RoomSchema.methods.getPlayer = function(userId: string): IPlayer | undefined {
 };
 
 // Create and export the Room model
-const Room = mongoose.model<IRoomDocument>('Room', RoomSchema);
+const Room = mongoose.model<IRoomDocument, IRoomModel>('Room', RoomSchema);
 
 export default Room;
+
+
+
+// const roomSchema = new Schema<IRoomDocument, {}, IRoomMethods>(
+//   {
+//     roomCode: {
+//       type: String,
+//       required: true,
+//       unique: true
+//     },
