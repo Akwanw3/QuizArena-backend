@@ -19,7 +19,7 @@ export interface IUser {
 
 // What a Game Room looks like
 export interface IRoom {
-  _Id?: string;
+  _Id: string;
   roomCode: string; // Unique 6-character code to join
   hostId: string; // User ID of the room creator
   players: IPlayer[]; // Array of players in the room

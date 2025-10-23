@@ -5,6 +5,7 @@ import { IRoom, IPlayer, IAnswer } from '../types/Index';
 // Extend IRoom to work with Mongoose
 export interface IRoomDocument extends IRoom, Document {
   roomCode: string;
+  roomId: string;
   hostId: string;
   players: IPlayer[];
   settings: IRoom['settings'];
@@ -187,12 +188,6 @@ RoomSchema.index({ roomCode: 1, status: 1 }); // Compound index
 RoomSchema.index({ createdAt: 1 }); // Index for sorting by creation time
 
 
-// // Import required modules
-// import mongoose, { Schema, Document, Model } from 'mongoose';
-
-// interface IRoomDocument extends Document {
-//   roomCode: string;
-// }
 
  interface IRoomModel extends Model<IRoomDocument> {
    generateRoomCode(): Promise<string>;
@@ -246,10 +241,3 @@ export default Room;
 
 
 
-// const roomSchema = new Schema<IRoomDocument, {}, IRoomMethods>(
-//   {
-//     roomCode: {
-//       type: String,
-//       required: true,
-//       unique: true
-//     },

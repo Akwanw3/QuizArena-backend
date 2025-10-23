@@ -1,9 +1,11 @@
 // Import mongoose and our types
-import mongoose, { Schema, Document } from 'mongoose';
+import mongoose, { Schema, Document, Model } from 'mongoose';
 import { IGame, IGamePlayer, IQuestion } from '../types/Index';
 
 // Extend IGame to work with Mongoose
-export interface IGameDocument extends IGame, Document {}
+export interface IGameDocument extends IGame, Document {
+  
+}
 
 // Sub-schema for storing questions that were asked
 const QuestionSchema: Schema = new Schema(
@@ -166,6 +168,12 @@ GameSchema.index({ createdAt: -1 }); // Sort by newest first (-1 = descending)
 GameSchema.index({ 'settings.difficulty': 1 }); // Filter by difficulty
 
 // Static method to get user's game history
+
+interface GameModel extends Model<IGameDocument> {
+   getUserHistory(userId: string, limit?: number): Promise<IGameDocument[]>;
+    getGlobalLeaderboard(limit?: number): Promise<any[]>;
+ }
+
 GameSchema.statics.getUserHistory = async function(
   userId: string,
   limit: number = 10
@@ -260,6 +268,6 @@ GameSchema.methods.getPlayerRank = function(userId: string): number | null {
 };
 
 // Create and export the Game model
-const Game = mongoose.model<IGameDocument>('Game', GameSchema);
+const Game = mongoose.model<IGameDocument, GameModel>('Game', GameSchema);
 
 export default Game;
