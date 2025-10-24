@@ -401,17 +401,86 @@ const endGame = async (roomCode: string) => {
   });
   
   // Update user statistics
-  for (const result of results) {
-    const user = await User.findById(result.userId);
-    if (user) {
-      user.stats.gamesPlayed += 1;
-      if (result.rank === 1) {
-        user.stats.wins += 1;
+ // Update user statistics and check achievements
+for (const result of results) {
+  const user = await User.findById(result.userId);
+  if (user) {
+    // Basic stats
+    user.stats.gamesPlayed += 1;
+    const isWin = result.rank === 1;
+    
+    if (isWin) {
+      user.stats.wins += 1;
+      // Update current streak
+      (user as any).stats.currentStreak = ((user as any).stats.currentStreak || 0) + 1;
+      // Update longest streak if current is higher
+      if ((user as any).stats.currentStreak > (user as any).stats.longestStreak) {
+        (user as any).stats.longestStreak = (user as any).stats.currentStreak;
       }
-      user.stats.totalPoints += result.finalScore;
-      await user.save();
+    } else {
+      // Reset current streak on loss
+      (user as any).stats.currentStreak = 0;
+    }
+    
+    user.stats.totalPoints += result.finalScore;
+    
+    // Update highest score
+    if (result.finalScore > ((user as any).stats.highestScore || 0)) {
+      (user as any).stats.highestScore = result.finalScore;
+    }
+    
+    // Check if perfect game (100% accuracy)
+    if (result.accuracy === 100 && isWin) {
+      (user as any).stats.perfectGames = ((user as any).stats.perfectGames || 0) + 1;
+    }
+    
+    // Update fastest win if applicable
+    if (isWin) {
+      const gameDuration = savedGame.duration;
+      if ((user as any).stats.fastestWin === 0 || gameDuration < (user as any).stats.fastestWin) {
+        (user as any).stats.fastestWin = gameDuration;
+      }
+    }
+    
+    await user.save();
+    
+    // Check and unlock achievements
+    const { checkAndUnlockAchievements } = await import('../utils/achievement');
+    const newAchievements = await checkAndUnlockAchievements(result.userId);
+    
+    // If achievements unlocked, emit to user
+    if (newAchievements.length > 0) {
+      io.to(result.userId).emit('achievements:unlocked', {
+        achievements: newAchievements
+      });
+    }
+    
+    // Create activity for game played
+    const { default: Activity } = await import('../models/Activity');
+    await Activity.createActivity(
+      result.userId,
+      result.username,
+      isWin ? 'game_won' : 'game_played',
+      isWin 
+        ? `Won a game with ${result.finalScore} points!` 
+        : `Played a game and scored ${result.finalScore} points`,
+      { gameId: savedGame._id, score: result.finalScore },
+      user.avatar || 'default-avatar'
+    );
+    
+    // Create high score activity if applicable
+    if (result.finalScore > 500) {
+      await Activity.createActivity(
+        result.userId,
+        result.username,
+        'high_score',
+        `Achieved a high score of ${result.finalScore} points!`,
+        { gameId: savedGame._id, score: result.finalScore },
+        user.avatar || 'default-avatar'
+      );
     }
   }
+}
   
   // Update room status
   room.status = 'finished';

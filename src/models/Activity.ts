@@ -1,9 +1,59 @@
 // Import mongoose
-import mongoose, { Schema, Document } from 'mongoose';
+import mongoose, { Schema, Document, Model } from 'mongoose';
 import { IActivity } from '../types/Index';
 
 // Extend IActivity with Mongoose Document
 export interface IActivityDocument extends IActivity, Document {}
+
+interface IActivityModel extends Model<IActivityDocument> {
+  createActivity(userId: string, username: string, type: string, description: string, metadata: any, avatar: string): Promise<IActivityDocument>;
+}
+
+/** Activity Model
+ * import mongoose, { Schema, Document, Model } from 'mongoose';
+
+interface IActivityDocument extends Document {
+  userId: string;
+  username: string;
+  type: string;
+  description: string;
+  metadata: any;
+  avatar: string;
+  createdAt: Date;
+}
+
+
+
+const activitySchema = new Schema({
+  userId: { type: String, required: true },
+  username: { type: String, required: true },
+  type: { type: String, required: true },
+  description: { type: String, required: true },
+  metadata: { type: Schema.Types.Mixed },
+  avatar: { type: String },
+  createdAt: { type: Date, default: Date.now }
+});
+
+activitySchema.statics.createActivity = async function(
+  userId: string,
+  username: string,
+  type: string,
+  description: string,
+  metadata: any,
+  avatar: string
+) {
+  return this.create({
+    userId,
+    username,
+    type,
+    description,
+    metadata,
+    avatar
+  });
+};
+ */
+
+
 
 // Activity Schema
 const ActivitySchema: Schema = new Schema(
@@ -94,6 +144,6 @@ ActivitySchema.statics.getUserActivities = async function(
 };
 
 // Create and export model
-const Activity = mongoose.model<IActivityDocument>('Activity', ActivitySchema);
+const Activity = mongoose.model<IActivityDocument, IActivityModel>('Activity', ActivitySchema);
 
 export default Activity;
