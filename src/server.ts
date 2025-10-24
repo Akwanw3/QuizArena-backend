@@ -31,10 +31,16 @@ app.use(express.urlencoded({extended:true}));
 import AuthRoutes from './routes/AuthRoutes';
 import RoomRoutes from './routes/RoomRoutes';
 import GameRoutes from './routes/GameRoutes';
+import UserRoutes from './routes/UserRoutes';
+import ActivityRoutes from './routes/ActivityRoutes';
+import AchievementsRoutes from './routes/AchievementsRoutes';
 
 app.use('/api/games', GameRoutes);
 app.use('/api/rooms', RoomRoutes);
 app.use('/api/auth', AuthRoutes);
+app.use('/api/users', UserRoutes);
+app.use('/api/activities', ActivityRoutes);
+app.use('/api/achievements', AchievementsRoutes);
 
 app.get('/', (req, res)=>{
     res.json({message: 'TriviaGame API is running!'});
