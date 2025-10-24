@@ -28,6 +28,7 @@ export interface IRoom {
     difficulty: 'easy' | 'medium' | 'hard'; // Question difficulty
     numberOfQuestions: number; // How many questions in the game
     timePerQuestion: number; // Seconds per question
+    mode: GameMode;
   };
   status: 'waiting' | 'playing' | 'finished'; // Current room status
   currentQuestion?: number; // Which question we're on (0-indexed)
@@ -116,4 +117,71 @@ export interface IJWTPayload {
   email: string;
   iat?: number; // Issued at (timestamp)
   exp?: number; // Expires at (timestamp)
+}
+
+// Game modes
+export type GameMode = 'classic' | 'speed' | 'survival';
+
+
+
+// Achievement types
+export interface IAchievement {
+  _Id?: string;
+  userId: string;
+  achievementId: string;
+  title: string;
+  description: string;
+  icon: string;
+  unlockedAt: Date;
+  progress?: number; // For progressive achievements
+}
+
+// Achievement definitions
+export interface IAchievementDefinition {
+  id: string;
+  title: string;
+  description: string;
+  icon: string;
+  condition: (userStats: any) => boolean;
+  category: 'games' | 'wins' | 'score' | 'speed' | 'accuracy';
+  rarity: 'common' | 'rare' | 'epic' | 'legendary';
+}
+
+// User activity
+export interface IActivity {
+  _Id?: string;
+  userId: string;
+  username: string;
+  avatar?: string;
+  type: 'game_won' | 'game_played' | 'achievement_unlocked' | 'high_score';
+  description: string;
+  metadata?: any;
+  createdAt: Date;
+}
+
+// Enhanced user stats
+export interface IEnhancedStats {
+  gamesPlayed: number;
+  wins: number;
+  losses: number;
+  totalPoints: number;
+  winRate: number;
+  avgPointsPerGame: number;
+  highestScore: number;
+  fastestWin: number; // Seconds
+  longestStreak: number;
+  currentStreak: number;
+  perfectGames: number; // 100% accuracy
+  achievements: number;
+  rank: string; // 'Beginner', 'Intermediate', 'Expert', 'Master'
+}
+
+// Leaderboard entry with more details
+export interface ILeaderboardEntry {
+  rank: number;
+  userId: string;
+  username: string;
+  avatar?: string;
+  stats: IEnhancedStats;
+  badges: string[]; // Achievement badges to display
 }

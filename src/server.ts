@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import { Server } from 'socket.io';
 import { createServer } from 'http';
 import connectDB from './config/Database';
+import { initializeGameSocket } from './socket/GameSocket';
 
 dotenv.config();
 
@@ -22,12 +23,16 @@ app.use(cors({
     credentials: true
 }));
 
+initializeGameSocket(io);
+
 app.use(express.json());
 app.use(express.urlencoded({extended:true}));
 
 import AuthRoutes from './routes/AuthRoutes';
 import RoomRoutes from './routes/RoomRoutes';
+import GameRoutes from './routes/GameRoutes';
 
+app.use('/api/games', GameRoutes);
 app.use('/api/rooms', RoomRoutes);
 app.use('/api/auth', AuthRoutes);
 
@@ -35,15 +40,7 @@ app.get('/', (req, res)=>{
     res.json({message: 'TriviaGame API is running!'});
 });
 
-io.on('connection', (socket)=>{
-    console.log('New client connected :', socket.id);
 
-    socket.on('disconnect',()=>{
-        console.log('client disconnected:',socket.id);
-        
-    });
-    
-});
 
 import { errorHandler, notFound } from './middleware/ErrorHandler';
 app.use(notFound);
