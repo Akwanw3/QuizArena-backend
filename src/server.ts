@@ -19,7 +19,8 @@ const io = new Server(httpServer, {
     }
 });
 app.use(cors({
-    origin:process.env.CLIENT_URL || 'localhost:5173',
+    origin:process.env.CLIENT_URL || 'localhost:5173' || '*',
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
     credentials: true
 }));
 
