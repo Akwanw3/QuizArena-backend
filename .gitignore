@@ -4,5 +4,4 @@ node_modules/
 
 echo "node_modules
 .env
-dist
 .DS_Store" > .gitignore
