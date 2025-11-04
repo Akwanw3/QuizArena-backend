@@ -84,6 +84,8 @@ export const fetchTriviaQuestions = async (
     // 4 = Token Empty
     if (response.data.response_code !== 0) {
       throw new Error('Failed to fetch trivia questions from API');
+      console.log(`failed to fetch`);
+      
     }
     
     // Decode HTML entities in questions and answers

@@ -43,6 +43,7 @@ const User_1 = __importDefault(require("../models/User"));
 const ErrorHandler_1 = require("../middleware/ErrorHandler");
 const server_1 = require("../server");
 const TriviaAPI_1 = require("../utils/TriviaAPI");
+const NotificationController_1 = require("./NotificationController");
 const activeGames = new Map();
 /**
  * Start a game (host only)
@@ -51,6 +52,7 @@ const activeGames = new Map();
  */
 exports.startGame = (0, ErrorHandler_1.asyncHandler)(async (req, res) => {
     const { roomCode } = req.params;
+    console.log('🎮 Starting game for room:', roomCode);
     // Step 1: Find room
     const room = await Room_1.default.findOne({ roomCode: roomCode.toUpperCase() });
     if (!room) {
@@ -98,12 +100,14 @@ exports.startGame = (0, ErrorHandler_1.asyncHandler)(async (req, res) => {
         players: playerStates
     });
     // Step 10: Emit game started event
+    console.log('📢 Emitting game:started to room:', roomCode.toUpperCase());
     server_1.io.to(roomCode.toUpperCase()).emit('game:started', {
         message: 'Game is starting!',
         numberOfQuestions: room.settings.numberOfQuestions
     });
     // Step 11: Send first question after 3 seconds countdown
     setTimeout(() => {
+        console.log('⏰ Countdown finished, sending first question');
         sendQuestion(roomCode.toUpperCase());
     }, 3000);
     res.status(200).json({
@@ -116,6 +120,7 @@ exports.startGame = (0, ErrorHandler_1.asyncHandler)(async (req, res) => {
  * Called internally, not an API endpoint
  */
 const sendQuestion = async (roomCode) => {
+    console.log('📤 Sending question for room:', roomCode);
     const game = activeGames.get(roomCode);
     const room = await Room_1.default.findOne({ roomCode });
     if (!game || !room) {
@@ -149,6 +154,16 @@ const sendQuestion = async (roomCode) => {
         server_1.io.to(roomCode).emit('game:answer-reveal', {
             correctAnswer: question.correctAnswer,
             explanation: `The correct answer was: ${question.correctAnswer}`
+        });
+        console.log('📢 Emitting game:question to room:', roomCode);
+        server_1.io.to(roomCode).emit('game:question', {
+            questionNumber: game.currentQuestionIndex + 1,
+            totalQuestions: game.questions.length,
+            question: question.question,
+            answers: question.answers,
+            category: question.category,
+            difficulty: question.difficulty,
+            timeLimit: room.settings.timePerQuestion
         });
         // Wait 3 seconds before next question
         setTimeout(() => {
@@ -386,6 +401,19 @@ const endGame = async (roomCode) => {
                 server_1.io.to(result.userId).emit('achievements:unlocked', {
                     achievements: newAchievements
                 });
+            }
+            if (newAchievements.length > 0) {
+                server_1.io.to(result.userId).emit('achievements:unlocked', {
+                    achievements: newAchievements
+                });
+                // Send notification for each achievement
+                for (const achievement of newAchievements) {
+                    await (0, NotificationController_1.sendNotification)(result.userId, 'achievement', '🏆 Achievement Unlocked!', `You've unlocked: ${achievement.title}`, { achievementId: achievement.achievementId });
+                }
+            }
+            // After game ends, notify winner
+            if (result.rank === 1) {
+                await (0, NotificationController_1.sendNotification)(result.userId, 'leaderboard', '🥇 Victory!', `You won the game with ${result.finalScore} points!`, { gameId: savedGame._id, score: result.finalScore });
             }
             // Create activity for game played
             const { default: Activity } = await Promise.resolve().then(() => __importStar(require('../models/Activity')));

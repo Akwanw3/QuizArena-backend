@@ -13,13 +13,13 @@ const httpServer = createServer(app);
 
 const io = new Server(httpServer, {
     cors:{
-        origin: process.env.CLIENT_URL || 'http://localhost:5173',
-        methods: ['GET', 'POST'],
+        origin: process.env.CLIENT_URL || 'http://localhost:5173' || '*',
+        methods: ['GET', 'POST', 'PUT', 'DELETE'],
         credentials: true
     }
 });
 app.use(cors({
-    origin:process.env.CLIENT_URL || 'localhost:5173' || '*',
+    origin:process.env.CLIENT_URL || 'http://localhost:5173' || '*',
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     credentials: true
 }));
@@ -35,7 +35,9 @@ import GameRoutes from './routes/GameRoutes';
 import UserRoutes from './routes/UserRoutes';
 import ActivityRoutes from './routes/ActivityRoutes';
 import AchievementsRoutes from './routes/AchievementsRoutes';
+import NotificationRoutes from './routes/NotificationRoutes';
 
+app.use('/api/notifications', NotificationRoutes);
 app.use('/api/games', GameRoutes);
 app.use('/api/rooms', RoomRoutes);
 app.use('/api/auth', AuthRoutes);
@@ -44,7 +46,7 @@ app.use('/api/activities', ActivityRoutes);
 app.use('/api/achievements', AchievementsRoutes);
 
 app.get('/', (req, res)=>{
-    res.json({message: 'TriviaGame API is running!'});
+    res.json({message: 'QuizArena API is running!'});
 });
 
 
@@ -66,9 +68,11 @@ const startServer = async()=>{
             
         });
     }catch(err){
-        console.error('Faile to start server:', err);
+        console.error('Failed to start server:', err);
         process.exit(1);
     }
 };
 startServer();
 export {io};
+
+

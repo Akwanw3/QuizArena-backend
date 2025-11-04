@@ -1,5 +1,6 @@
 // Import Express Router
 import express from 'express';
+import { upload } from '../middleware/Upload';
 
 // Import controllers
 import {
@@ -8,7 +9,13 @@ import {
   getProfile,
   updateProfile,
   getStats,
-  changePassword
+  changePassword,
+  uploadAvatar,
+  verifyEmail,
+  resendVerificationOTP,
+  forgotPassword,
+  resetPassword,
+  updateNotificationSettings
 } from '../controllers/AuthController';
 
 // Import authentication middleware
@@ -63,7 +70,38 @@ router.get('/stats', authenticate, getStats);
  * Headers: { Authorization: "Bearer <token>" }
  * Body: { currentPassword, newPassword }
  */
+
+
+router.post('/verify-email', authenticate, verifyEmail);
+
+/**
+ * POST /api/auth/resend-verification
+ * Resend verification OTP
+ */
+router.post('/resend-verification', authenticate, resendVerificationOTP);
+
+/**
+ * POST /api/auth/forgot-password
+ * Request password reset
+ */
+router.post('/forgot-password', forgotPassword);
+
+/**
+ * POST /api/auth/reset-password
+ * Reset password with OTP
+ */
+router.post('/reset-password', resetPassword);
+
+/**
+ * POST /api/auth/avatar
+ * Upload avatar image
+ */
+
 router.put('/password', authenticate, changePassword);
+
+router.post('/avatar', authenticate, upload.single('avatar'), uploadAvatar);
+
+router.put('/notification-settings', authenticate, updateNotificationSettings);
 
 // Export router
 export default router;

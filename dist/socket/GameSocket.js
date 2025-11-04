@@ -6,28 +6,19 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.initializeGameSocket = void 0;
 const Room_1 = __importDefault(require("../models/Room"));
 const Auth_1 = require("../utils/Auth");
-/**
- * Initialize Socket.io game handlers
- * @param io - Socket.io server instance
- */
 const initializeGameSocket = (io) => {
-    // Handle new socket connections
     io.on('connection', (socket) => {
         console.log('🔌 New client connected:', socket.id);
-        // Store user info on socket after authentication
         let userId = null;
         let currentRoom = null;
-        /**
-         * Authenticate socket connection
-         * Client must send token to join rooms
-         */
+        // Authenticate socket
         socket.on('auth:authenticate', async (token) => {
             try {
-                // Verify JWT token
                 const decoded = (0, Auth_1.verifyToken)(token);
                 userId = decoded.userId;
-                // Store userId on socket
                 socket.userId = userId;
+                // Join user's personal room for notifications
+                socket.join(userId);
                 socket.emit('auth:success', {
                     message: 'Authentication successful'
                 });
@@ -40,20 +31,20 @@ const initializeGameSocket = (io) => {
                 console.log(`❌ Socket ${socket.id} authentication failed`);
             }
         });
-        /**
-         * Join a room
-         * Client joins Socket.io room to receive game events
-         */
+        // Join user's personal room (for notifications)
+        socket.on('user:join', (userId) => {
+            socket.join(userId);
+            console.log(`👤 User ${userId} joined personal room`);
+        });
+        // Join a game room
         socket.on('room:join', async (roomCode) => {
             try {
-                // Check if user is authenticated
                 if (!userId) {
                     socket.emit('room:error', {
                         message: 'Please authenticate first'
                     });
                     return;
                 }
-                // Verify room exists and user is in it
                 const room = await Room_1.default.findOne({ roomCode: roomCode.toUpperCase() });
                 if (!room) {
                     socket.emit('room:error', {
@@ -61,7 +52,6 @@ const initializeGameSocket = (io) => {
                     });
                     return;
                 }
-                // Check if user is a player in this room
                 const isPlayer = room.players.some((p) => p.userId === userId);
                 if (!isPlayer) {
                     socket.emit('room:error', {
@@ -69,7 +59,11 @@ const initializeGameSocket = (io) => {
                     });
                     return;
                 }
-                // Join Socket.io room
+                // Leave previous room if any
+                if (currentRoom) {
+                    socket.leave(currentRoom);
+                }
+                // Join new room
                 socket.join(roomCode.toUpperCase());
                 currentRoom = roomCode.toUpperCase();
                 // Update player connection status
@@ -93,20 +87,16 @@ const initializeGameSocket = (io) => {
                 });
             }
         });
-        /**
-         * Leave current room
-         */
+        // Leave current room
         socket.on('room:leave', async () => {
             if (currentRoom && userId) {
                 try {
-                    // Update player connection status
                     const room = await Room_1.default.findOne({ roomCode: currentRoom });
                     if (room) {
                         const player = room.players.find((p) => p.userId === userId);
                         if (player) {
                             player.isConnected = false;
                             await room.save();
-                            // Notify others
                             socket.to(currentRoom).emit('room:updated', room);
                         }
                     }
@@ -119,12 +109,9 @@ const initializeGameSocket = (io) => {
                 }
             }
         });
-        /**
-         * Handle disconnection
-         */
+        // Handle disconnection
         socket.on('disconnect', async () => {
             console.log('❌ Client disconnected:', socket.id);
-            // Mark player as disconnected in current room
             if (currentRoom && userId) {
                 try {
                     const room = await Room_1.default.findOne({ roomCode: currentRoom });
@@ -133,7 +120,6 @@ const initializeGameSocket = (io) => {
                         if (player) {
                             player.isConnected = false;
                             await room.save();
-                            // Notify others
                             io.to(currentRoom).emit('room:updated', room);
                         }
                     }

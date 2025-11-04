@@ -11,6 +11,7 @@ import {
   calculatePoints
 } from '../utils/TriviaAPI';
 import { IQuestion, IGamePlayer } from '../types/Index';
+import { sendNotification } from './NotificationController';
 
 // Store active games in memory (for real-time gameplay)
 // Key: roomCode, Value: game state
@@ -33,6 +34,7 @@ const activeGames = new Map<string, ActiveGame>();
 export const startGame = asyncHandler(
   async (req: Request, res: Response): Promise<void> => {
     const { roomCode } = req.params;
+    console.log('🎮 Starting game for room:', roomCode);
     
     // Step 1: Find room
     const room = await Room.findOne({ roomCode: roomCode.toUpperCase() });
@@ -97,13 +99,18 @@ export const startGame = asyncHandler(
     });
     
     // Step 10: Emit game started event
+    console.log('📢 Emitting game:started to room:', roomCode.toUpperCase());
     io.to(roomCode.toUpperCase()).emit('game:started', {
       message: 'Game is starting!',
       numberOfQuestions: room.settings.numberOfQuestions
     });
+
+     
+   
     
     // Step 11: Send first question after 3 seconds countdown
     setTimeout(() => {
+      console.log('⏰ Countdown finished, sending first question');
       sendQuestion(roomCode.toUpperCase());
     }, 3000);
     
@@ -119,6 +126,7 @@ export const startGame = asyncHandler(
  * Called internally, not an API endpoint
  */
 const sendQuestion = async (roomCode: string) => {
+    console.log('📤 Sending question for room:', roomCode);
   const game = activeGames.get(roomCode);
   const room = await Room.findOne({ roomCode });
   
@@ -160,6 +168,18 @@ const sendQuestion = async (roomCode: string) => {
       correctAnswer: question.correctAnswer,
       explanation: `The correct answer was: ${question.correctAnswer}`
     });
+
+console.log('📢 Emitting game:question to room:', roomCode);
+  io.to(roomCode).emit('game:question', {
+    questionNumber: game.currentQuestionIndex + 1,
+    totalQuestions: game.questions.length,
+    question: question.question,
+    answers: question.answers,
+    category: question.category,
+    difficulty: question.difficulty,
+    timeLimit: room.settings.timePerQuestion
+  });
+
     
     // Wait 3 seconds before next question
     setTimeout(() => {
@@ -294,6 +314,11 @@ export const submitAnswer = asyncHandler(
     });
   }
 );
+
+
+
+
+
 
 /**
  * Get current scores during game
@@ -454,6 +479,34 @@ for (const result of results) {
         achievements: newAchievements
       });
     }
+
+    if (newAchievements.length > 0) {
+  io.to(result.userId).emit('achievements:unlocked', {
+    achievements: newAchievements
+  });
+  
+  // Send notification for each achievement
+  for (const achievement of newAchievements) {
+    await sendNotification(
+      result.userId,
+      'achievement',
+      '🏆 Achievement Unlocked!',
+      `You've unlocked: ${achievement.title}`,
+      { achievementId: achievement.achievementId }
+    );
+  }
+}
+
+// After game ends, notify winner
+if (result.rank === 1) {
+  await sendNotification(
+    result.userId,
+    'leaderboard',
+    '🥇 Victory!',
+    `You won the game with ${result.finalScore} points!`,
+    { gameId: savedGame._id, score: result.finalScore }
+  );
+}
     
     // Create activity for game played
     const { default: Activity } = await import('../models/Activity');
@@ -568,3 +621,4 @@ export const getLeaderboard = asyncHandler(
     });
   }
 );
+

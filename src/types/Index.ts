@@ -7,6 +7,11 @@ export interface IUser {
   email: string; // Player's email
   password: string; // Encrypted password
   avatar?: string; // Profile picture URL (optional)
+  isVerified: boolean;
+  verificationOTP?: string;
+  verificationOTPExpires?: Date;
+  resetPasswordOTP?: string;
+  resetPasswordOTPExpires?: Date;
   stats: {
     gamesPlayed: number; // Total games played
     wins: number; // Total wins

@@ -1,33 +1,24 @@
-// Import Socket.io types and Room model
 import { Server, Socket } from 'socket.io';
 import Room from '../models/Room';
 import { verifyToken } from '../utils/Auth';
 
-/**
- * Initialize Socket.io game handlers
- * @param io - Socket.io server instance
- */
 export const initializeGameSocket = (io: Server) => {
-  // Handle new socket connections
   io.on('connection', (socket: Socket) => {
     console.log('🔌 New client connected:', socket.id);
     
-    // Store user info on socket after authentication
     let userId: string | null = null;
     let currentRoom: string | null = null;
     
-    /**
-     * Authenticate socket connection
-     * Client must send token to join rooms
-     */
+    // Authenticate socket
     socket.on('auth:authenticate', async (token: string) => {
       try {
-        // Verify JWT token
         const decoded = verifyToken(token);
         userId = decoded.userId;
         
-        // Store userId on socket
         (socket as any).userId = userId;
+        
+        // Join user's personal room for notifications
+        socket.join(userId);
         
         socket.emit('auth:success', {
           message: 'Authentication successful'
@@ -41,14 +32,16 @@ export const initializeGameSocket = (io: Server) => {
         console.log(`❌ Socket ${socket.id} authentication failed`);
       }
     });
+
+    // Join user's personal room (for notifications)
+    socket.on('user:join', (userId: string) => {
+      socket.join(userId);
+      console.log(`👤 User ${userId} joined personal room`);
+    });
     
-    /**
-     * Join a room
-     * Client joins Socket.io room to receive game events
-     */
+    // Join a game room
     socket.on('room:join', async (roomCode: string) => {
       try {
-        // Check if user is authenticated
         if (!userId) {
           socket.emit('room:error', {
             message: 'Please authenticate first'
@@ -56,7 +49,6 @@ export const initializeGameSocket = (io: Server) => {
           return;
         }
         
-        // Verify room exists and user is in it
         const room = await Room.findOne({ roomCode: roomCode.toUpperCase() });
         
         if (!room) {
@@ -66,7 +58,6 @@ export const initializeGameSocket = (io: Server) => {
           return;
         }
         
-        // Check if user is a player in this room
         const isPlayer = room.players.some((p) => p.userId === userId);
         
         if (!isPlayer) {
@@ -76,7 +67,12 @@ export const initializeGameSocket = (io: Server) => {
           return;
         }
         
-        // Join Socket.io room
+        // Leave previous room if any
+        if (currentRoom) {
+          socket.leave(currentRoom);
+        }
+        
+        // Join new room
         socket.join(roomCode.toUpperCase());
         currentRoom = roomCode.toUpperCase();
         
@@ -104,13 +100,10 @@ export const initializeGameSocket = (io: Server) => {
       }
     });
     
-    /**
-     * Leave current room
-     */
+    // Leave current room
     socket.on('room:leave', async () => {
       if (currentRoom && userId) {
         try {
-          // Update player connection status
           const room = await Room.findOne({ roomCode: currentRoom });
           if (room) {
             const player = room.players.find((p) => p.userId === userId);
@@ -118,7 +111,6 @@ export const initializeGameSocket = (io: Server) => {
               player.isConnected = false;
               await room.save();
               
-              // Notify others
               socket.to(currentRoom).emit('room:updated', room);
             }
           }
@@ -132,13 +124,10 @@ export const initializeGameSocket = (io: Server) => {
       }
     });
     
-    /**
-     * Handle disconnection
-     */
+    // Handle disconnection
     socket.on('disconnect', async () => {
       console.log('❌ Client disconnected:', socket.id);
       
-      // Mark player as disconnected in current room
       if (currentRoom && userId) {
         try {
           const room = await Room.findOne({ roomCode: currentRoom });
@@ -148,7 +137,6 @@ export const initializeGameSocket = (io: Server) => {
               player.isConnected = false;
               await room.save();
               
-              // Notify others
               io.to(currentRoom).emit('room:updated', room);
             }
           }

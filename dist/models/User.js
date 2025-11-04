@@ -66,6 +66,47 @@ const UserSchema = new mongoose_1.Schema({
         minlength: [6, 'Password must be at least 6 characters'],
         select: false // Don't return password in queries by default (security!)
     },
+    // Email verification
+    isVerified: {
+        type: Boolean,
+        default: false
+    },
+    verificationOTP: {
+        type: String,
+        select: false // Don't return in queries by default
+    },
+    verificationOTPExpires: {
+        type: Date,
+        select: false
+    },
+    // Password reset
+    resetPasswordOTP: {
+        type: String,
+        select: false
+    },
+    resetPasswordOTPExpires: {
+        type: Date,
+        select: false
+    },
+    // Add this field to UserSchema (after isVerified):
+    notificationSettings: {
+        gameInvites: {
+            type: Boolean,
+            default: true
+        },
+        achievements: {
+            type: Boolean,
+            default: true
+        },
+        leaderboard: {
+            type: Boolean,
+            default: true
+        },
+        email: {
+            type: Boolean,
+            default: true
+        }
+    },
     // Avatar URL (optional)
     avatar: {
         type: String,

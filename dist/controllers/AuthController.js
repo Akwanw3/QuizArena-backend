@@ -3,28 +3,24 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.changePassword = exports.getStats = exports.updateProfile = exports.getProfile = exports.login = exports.register = void 0;
+exports.updateNotificationSettings = exports.uploadAvatar = exports.changePassword = exports.getStats = exports.updateProfile = exports.getProfile = exports.login = exports.resetPassword = exports.forgotPassword = exports.resendVerificationOTP = exports.verifyEmail = exports.register = void 0;
 const User_1 = __importDefault(require("../models/User"));
 const Auth_1 = require("../utils/Auth");
 const ErrorHandler_1 = require("../middleware/ErrorHandler");
+const EmailService_1 = require("../utils/EmailService");
 /**
- * Register a new user
- * POST /api/auth/register
- * Public route
+ * Register a new user (UPDATED - sends OTP)
  */
 exports.register = (0, ErrorHandler_1.asyncHandler)(async (req, res) => {
-    // Step 1: Extract data from request body
     const { username, email, password } = req.body;
-    // Step 2: Validate input (basic validation)
     if (!username || !email || !password) {
         throw new ErrorHandler_1.AppError('Please provide username, email, and password', 400);
     }
-    // Step 3: Check if user already exists
+    // Check if user already exists
     const existingUser = await User_1.default.findOne({
         $or: [{ email }, { username }]
     });
     if (existingUser) {
-        // Check which field is duplicate
         if (existingUser.email === email) {
             throw new ErrorHandler_1.AppError('Email already registered', 400);
         }
@@ -32,13 +28,19 @@ exports.register = (0, ErrorHandler_1.asyncHandler)(async (req, res) => {
             throw new ErrorHandler_1.AppError('Username already taken', 400);
         }
     }
-    // Step 4: Hash the password
+    // Hash password
     const hashedPassword = await (0, Auth_1.hashPassword)(password);
-    // Step 5: Create new user
+    // Generate OTP
+    const otp = (0, EmailService_1.generateOTP)();
+    const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+    // Create user
     const user = await User_1.default.create({
         username,
         email,
         password: hashedPassword,
+        isVerified: false,
+        verificationOTP: otp,
+        verificationOTPExpires: otpExpires,
         stats: {
             gamesPlayed: 0,
             wins: 0,
@@ -46,25 +48,169 @@ exports.register = (0, ErrorHandler_1.asyncHandler)(async (req, res) => {
             winRate: 0
         }
     });
-    // Step 6: Generate JWT token
+    // Send verification email
+    try {
+        await (0, EmailService_1.sendVerificationEmail)(email, username, otp);
+    }
+    catch (error) {
+        console.error('Error sending verification email:', error);
+        // Don't fail registration if email fails
+    }
+    // Generate JWT token
     const token = (0, Auth_1.generateToken)({
         userId: user.id.toString(),
         email: user.email
     });
-    // Step 7: Send response (don't include password!)
     res.status(201).json({
         success: true,
-        message: 'User registered successfully',
+        message: 'User registered successfully. Please check your email for verification code.',
         data: {
             user: {
                 id: user._id,
                 username: user.username,
                 email: user.email,
                 avatar: user.avatar,
-                stats: user.stats
+                stats: user.stats,
+                isVerified: user.isVerified
             },
-            token
+            token,
+            requiresVerification: true
         }
+    });
+});
+/**
+ * Verify email with OTP
+ * POST /api/auth/verify-email
+ * Protected route
+ */
+exports.verifyEmail = (0, ErrorHandler_1.asyncHandler)(async (req, res) => {
+    const { otp } = req.body;
+    if (!otp) {
+        throw new ErrorHandler_1.AppError('Please provide OTP', 400);
+    }
+    // Get user with OTP fields
+    const user = await User_1.default.findById(req.user?.userId).select('+verificationOTP +verificationOTPExpires');
+    if (!user) {
+        throw new ErrorHandler_1.AppError('User not found', 404);
+    }
+    if (user.isVerified) {
+        throw new ErrorHandler_1.AppError('Email already verified', 400);
+    }
+    // Check OTP
+    if (!user.verificationOTP || user.verificationOTP !== otp) {
+        throw new ErrorHandler_1.AppError('Invalid OTP', 400);
+    }
+    // Check expiry
+    if (!user.verificationOTPExpires || user.verificationOTPExpires < new Date()) {
+        throw new ErrorHandler_1.AppError('OTP expired. Please request a new one.', 400);
+    }
+    // Verify user
+    user.isVerified = true;
+    user.verificationOTP = undefined;
+    user.verificationOTPExpires = undefined;
+    await user.save();
+    res.status(200).json({
+        success: true,
+        message: 'Email verified successfully! You can now play games.',
+        data: {
+            isVerified: true
+        }
+    });
+});
+/**
+ * Resend verification OTP
+ * POST /api/auth/resend-verification
+ * Protected route
+ */
+exports.resendVerificationOTP = (0, ErrorHandler_1.asyncHandler)(async (req, res) => {
+    const user = await User_1.default.findById(req.user?.userId);
+    if (!user) {
+        throw new ErrorHandler_1.AppError('User not found', 404);
+    }
+    if (user.isVerified) {
+        throw new ErrorHandler_1.AppError('Email already verified', 400);
+    }
+    // Generate new OTP
+    const otp = (0, EmailService_1.generateOTP)();
+    const otpExpires = new Date(Date.now() + 10 * 60 * 1000);
+    user.verificationOTP = otp;
+    user.verificationOTPExpires = otpExpires;
+    await user.save();
+    // Send email
+    await (0, EmailService_1.sendVerificationEmail)(user.email, user.username, otp);
+    res.status(200).json({
+        success: true,
+        message: 'Verification code sent to your email'
+    });
+});
+/**
+ * Request password reset
+ * POST /api/auth/forgot-password
+ * Public route
+ */
+exports.forgotPassword = (0, ErrorHandler_1.asyncHandler)(async (req, res) => {
+    const { email } = req.body;
+    if (!email) {
+        throw new ErrorHandler_1.AppError('Please provide email', 400);
+    }
+    const user = await User_1.default.findOne({ email });
+    if (!user) {
+        // Don't reveal if email exists
+        res.status(200).json({
+            success: true,
+            message: 'If the email exists, a password reset code has been sent'
+        });
+        return;
+    }
+    // Generate OTP
+    const otp = (0, EmailService_1.generateOTP)();
+    const otpExpires = new Date(Date.now() + 10 * 60 * 1000);
+    user.resetPasswordOTP = otp;
+    user.resetPasswordOTPExpires = otpExpires;
+    await user.save();
+    // Send email
+    await (0, EmailService_1.sendPasswordResetEmail)(user.email, user.username, otp);
+    res.status(200).json({
+        success: true,
+        message: 'If the email exists, a password reset code has been sent'
+    });
+});
+/**
+ * Reset password with OTP
+ * POST /api/auth/reset-password
+ * Public route
+ */
+exports.resetPassword = (0, ErrorHandler_1.asyncHandler)(async (req, res) => {
+    const { email, otp, newPassword } = req.body;
+    if (!email || !otp || !newPassword) {
+        throw new ErrorHandler_1.AppError('Please provide email, OTP, and new password', 400);
+    }
+    if (newPassword.length < 6) {
+        throw new ErrorHandler_1.AppError('Password must be at least 6 characters', 400);
+    }
+    // Find user with reset fields
+    const user = await User_1.default.findOne({ email }).select('+resetPasswordOTP +resetPasswordOTPExpires');
+    if (!user) {
+        throw new ErrorHandler_1.AppError('Invalid request', 400);
+    }
+    // Check OTP
+    if (!user.resetPasswordOTP || user.resetPasswordOTP !== otp) {
+        throw new ErrorHandler_1.AppError('Invalid OTP', 400);
+    }
+    // Check expiry
+    if (!user.resetPasswordOTPExpires || user.resetPasswordOTPExpires < new Date()) {
+        throw new ErrorHandler_1.AppError('OTP expired. Please request a new one.', 400);
+    }
+    // Hash new password
+    const hashedPassword = await (0, Auth_1.hashPassword)(newPassword);
+    // Update password
+    user.password = hashedPassword;
+    user.resetPasswordOTP = undefined;
+    user.resetPasswordOTPExpires = undefined;
+    await user.save();
+    res.status(200).json({
+        success: true,
+        message: 'Password reset successfully. You can now login with your new password.'
     });
 });
 /**
@@ -252,5 +398,62 @@ exports.changePassword = (0, ErrorHandler_1.asyncHandler)(async (req, res) => {
     res.status(200).json({
         success: true,
         message: 'Password changed successfully'
+    });
+});
+/**
+ * Upload avatar image
+ * POST /api/auth/avatar
+ * Protected route
+ */
+exports.uploadAvatar = (0, ErrorHandler_1.asyncHandler)(async (req, res) => {
+    // Check if file was uploaded
+    if (!req.file) {
+        throw new ErrorHandler_1.AppError('Please upload an image file', 400);
+    }
+    // Get user
+    const user = await User_1.default.findById(req.user?.userId);
+    if (!user) {
+        throw new ErrorHandler_1.AppError('User not found', 404);
+    }
+    // Update user avatar with Cloudinary URL
+    user.avatar = req.file.path; // Cloudinary URL
+    await user.save();
+    res.status(200).json({
+        success: true,
+        message: 'Avatar uploaded successfully',
+        data: {
+            avatar: user.avatar
+        }
+    });
+});
+/**
+ * Update notification settings
+ * PUT /api/auth/notification-settings
+ * Protected route
+ */
+exports.updateNotificationSettings = (0, ErrorHandler_1.asyncHandler)(async (req, res) => {
+    const { gameInvites, achievements, leaderboard, email } = req.body;
+    const user = await User_1.default.findById(req.user?.userId);
+    if (!user) {
+        throw new ErrorHandler_1.AppError('User not found', 404);
+    }
+    // Update settings (cast to any because notificationSettings is not declared on the model type)
+    const ns = user.notificationSettings || {};
+    if (gameInvites !== undefined)
+        ns.gameInvites = gameInvites;
+    if (achievements !== undefined)
+        ns.achievements = achievements;
+    if (leaderboard !== undefined)
+        ns.leaderboard = leaderboard;
+    if (email !== undefined)
+        ns.email = email;
+    user.notificationSettings = ns;
+    await user.save();
+    res.status(200).json({
+        success: true,
+        message: 'Notification settings updated',
+        data: {
+            notificationSettings: user.notificationSettings
+        }
     });
 });

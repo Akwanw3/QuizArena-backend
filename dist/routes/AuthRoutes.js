@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 // Import Express Router
 const express_1 = __importDefault(require("express"));
+const Upload_1 = require("../middleware/Upload");
 // Import controllers
 const AuthController_1 = require("../controllers/AuthController");
 // Import authentication middleware
@@ -50,6 +51,28 @@ router.get('/stats', Auth_1.authenticate, AuthController_1.getStats);
  * Headers: { Authorization: "Bearer <token>" }
  * Body: { currentPassword, newPassword }
  */
+router.post('/verify-email', Auth_1.authenticate, AuthController_1.verifyEmail);
+/**
+ * POST /api/auth/resend-verification
+ * Resend verification OTP
+ */
+router.post('/resend-verification', Auth_1.authenticate, AuthController_1.resendVerificationOTP);
+/**
+ * POST /api/auth/forgot-password
+ * Request password reset
+ */
+router.post('/forgot-password', AuthController_1.forgotPassword);
+/**
+ * POST /api/auth/reset-password
+ * Reset password with OTP
+ */
+router.post('/reset-password', AuthController_1.resetPassword);
+/**
+ * POST /api/auth/avatar
+ * Upload avatar image
+ */
 router.put('/password', Auth_1.authenticate, AuthController_1.changePassword);
+router.post('/avatar', Auth_1.authenticate, Upload_1.upload.single('avatar'), AuthController_1.uploadAvatar);
+router.put('/notification-settings', Auth_1.authenticate, AuthController_1.updateNotificationSettings);
 // Export router
 exports.default = router;
