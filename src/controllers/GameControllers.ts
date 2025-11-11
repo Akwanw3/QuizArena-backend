@@ -25,6 +25,7 @@ interface ActiveGame {
 }
 
 const activeGames = new Map<string, ActiveGame>();
+const processedGames = new Set<string>();
 
 /**
  * Start a game (host only)
@@ -354,26 +355,30 @@ const getCurrentScores = async (roomCode: string) => {
  * End the game and save results
  * Called internally when all questions answered
  */
+
 const endGame = async (roomCode: string) => {
+  //trying to avoid duplicates
+  if(processedGames.has(roomCode)){
+    console.log(`game already processed for this room, ${roomCode}`);
+    return;
+  };
+  processedGames.add(roomCode);
   const game = activeGames.get(roomCode);
-  const room = await Room.findOneAndUpdate(
-  { roomCode, status: { $ne: 'finished' } },
-  { $set: { status: 'finished' } },
-  { new: true }
-);
+  if(!game){
+    console.log(`no active game for room${roomCode}`);
+    return;
+  }
+  const room = await Room.findOne({roomCode})
 
 if (!room) {
   console.log(`⚠️ Room ${roomCode} already ended.`);
   return;
 }
 
-  if (!game || !room) {
-    return;
-  }
 
    if (room.status === 'finished') {
     console.log(`⚠️ Game for room ${roomCode} already ended — skipping duplicate save.`);
-    return;
+    return room;
   }
 
   // Optionally also block in memory to avoid race conditions
@@ -382,10 +387,6 @@ if (!room) {
     return;
   }
   (game as any).isEnded = true;
-
-  // ✅ Now officially end it
-  room.status = 'finished';
-  await room.save();
   
   // Clear any timers
   if (game.questionTimer) {
@@ -577,6 +578,7 @@ if (result.rank === 1) {
   
   // Clean up active game from memory
   activeGames.delete(roomCode);
+  setTimeout(()=> processedGames.delete(roomCode), 60000);
 };
 
 /**
