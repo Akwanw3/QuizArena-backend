@@ -96,7 +96,7 @@ const GameSchema: Schema = new Schema(
       required: true,
       validate: {
         validator: function(players: IGamePlayer[]) {
-          return players.length > 0; // At least 1 player
+          return players.length > 1; // At least 1 player
         },
         message: 'Game must have at least one player'
       }

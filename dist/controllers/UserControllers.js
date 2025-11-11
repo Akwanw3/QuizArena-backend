@@ -71,6 +71,7 @@ exports.getUserProfile = (0, ErrorHandler_1.asyncHandler)(async (req, res) => {
             user: {
                 id: user._id,
                 username: user.username,
+                isVerrified: user.isVerified,
                 avatar: user.avatar,
                 createdAt: user.createdAt
             },
@@ -79,7 +80,7 @@ exports.getUserProfile = (0, ErrorHandler_1.asyncHandler)(async (req, res) => {
                 wins: user.stats.wins,
                 losses: user.stats.gamesPlayed - user.stats.wins,
                 totalPoints: user.stats.totalPoints,
-                winRate: Math.round(winRate * 100) / 100,
+                winRate: winRate,
                 avgPointsPerGame: Math.round(avgPointsPerGame * 100) / 100,
                 highestScore: user.stats.highestScore || 0,
                 longestStreak: user.stats.longestStreak || 0,

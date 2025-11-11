@@ -89,7 +89,7 @@ export const initializeGameSocket = (io: Server) => {
         });
         
         // Notify others
-        socket.to(roomCode.toUpperCase()).emit('room:updated', room);
+        io.to(roomCode.toUpperCase()).emit('room:updated', room);
         
         console.log(`👥 User ${userId} joined room ${roomCode}`);
       } catch (error) {
@@ -111,7 +111,7 @@ export const initializeGameSocket = (io: Server) => {
               player.isConnected = false;
               await room.save();
               
-              socket.to(currentRoom).emit('room:updated', room);
+              io.to(currentRoom).emit('room:updated', room);
             }
           }
           

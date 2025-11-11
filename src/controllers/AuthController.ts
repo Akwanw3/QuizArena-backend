@@ -309,6 +309,7 @@ export const login = asyncHandler(
         user: {
           id: user._id,
           username: user.username,
+          isVerified:user.isVerified,
           email: user.email,
           avatar: user.avatar,
           stats: user.stats
@@ -343,6 +344,7 @@ export const getProfile = asyncHandler(
         user: {
           id: user._id,
           username: user.username,
+          isVerrified:user.isVerified,
           email: user.email,
           avatar: user.avatar,
           stats: user.stats,
@@ -405,6 +407,7 @@ export const updateProfile = asyncHandler(
       data: {
         user: {
           id: user._id,
+          isverrified: user.isVerified,
           username: user.username,
           email: user.email,
           avatar: user.avatar,
@@ -446,7 +449,7 @@ export const getStats = asyncHandler(
           wins: user.stats.wins,
           losses: user.stats.gamesPlayed - user.stats.wins,
           totalPoints: user.stats.totalPoints,
-          winRate: Math.round(winRate * 100) / 100, // Round to 2 decimals
+          winRate: Math.round(winRate ),
           avgPointsPerGame: Math.round(avgPointsPerGame * 100) / 100
         }
       }

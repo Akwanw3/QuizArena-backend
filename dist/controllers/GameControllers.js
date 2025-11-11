@@ -298,10 +298,27 @@ const getCurrentScores = async (roomCode) => {
  */
 const endGame = async (roomCode) => {
     const game = activeGames.get(roomCode);
-    const room = await Room_1.default.findOne({ roomCode });
+    const room = await Room_1.default.findOneAndUpdate({ roomCode, status: { $ne: 'finished' } }, { $set: { status: 'finished' } }, { new: true });
+    if (!room) {
+        console.log(`⚠️ Room ${roomCode} already ended.`);
+        return;
+    }
     if (!game || !room) {
         return;
     }
+    if (room.status === 'finished') {
+        console.log(`⚠️ Game for room ${roomCode} already ended — skipping duplicate save.`);
+        return;
+    }
+    // Optionally also block in memory to avoid race conditions
+    if (game.isEnded) {
+        console.log(`⚠️ Game ${roomCode} already processed in memory.`);
+        return;
+    }
+    game.isEnded = true;
+    // ✅ Now officially end it
+    room.status = 'finished';
+    await room.save();
     // Clear any timers
     if (game.questionTimer) {
         clearTimeout(game.questionTimer);
@@ -339,7 +356,7 @@ const endGame = async (roomCode) => {
     const winner = results[0];
     // Save game to database
     const savedGame = await Game_1.default.create({
-        roomId: room._Id.toString(),
+        roomId: room.id.toString(),
         players: results,
         winner: winner.userId,
         settings: room.settings,

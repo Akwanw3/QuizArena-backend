@@ -80,6 +80,7 @@ export const getUserProfile = asyncHandler(
         user: {
           id: user._id,
           username: user.username,
+          isVerrified: user.isVerified,
           avatar: user.avatar,
           createdAt: user.createdAt
         },
@@ -88,7 +89,7 @@ export const getUserProfile = asyncHandler(
           wins: user.stats.wins,
           losses: user.stats.gamesPlayed - user.stats.wins,
           totalPoints: user.stats.totalPoints,
-          winRate: Math.round(winRate * 100) / 100,
+          winRate: winRate,
           avgPointsPerGame: Math.round(avgPointsPerGame * 100) / 100,
           highestScore: (user as any).stats.highestScore || 0,
           longestStreak: (user as any).stats.longestStreak || 0,

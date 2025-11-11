@@ -249,6 +249,7 @@ exports.login = (0, ErrorHandler_1.asyncHandler)(async (req, res) => {
             user: {
                 id: user._id,
                 username: user.username,
+                isVerified: user.isVerified,
                 email: user.email,
                 avatar: user.avatar,
                 stats: user.stats
@@ -277,6 +278,7 @@ exports.getProfile = (0, ErrorHandler_1.asyncHandler)(async (req, res) => {
             user: {
                 id: user._id,
                 username: user.username,
+                isVerrified: user.isVerified,
                 email: user.email,
                 avatar: user.avatar,
                 stats: user.stats,
@@ -324,6 +326,7 @@ exports.updateProfile = (0, ErrorHandler_1.asyncHandler)(async (req, res) => {
         data: {
             user: {
                 id: user._id,
+                isverrified: user.isVerified,
                 username: user.username,
                 email: user.email,
                 avatar: user.avatar,
@@ -358,7 +361,7 @@ exports.getStats = (0, ErrorHandler_1.asyncHandler)(async (req, res) => {
                 wins: user.stats.wins,
                 losses: user.stats.gamesPlayed - user.stats.wins,
                 totalPoints: user.stats.totalPoints,
-                winRate: Math.round(winRate * 100) / 100, // Round to 2 decimals
+                winRate: Math.round(winRate),
                 avgPointsPerGame: Math.round(avgPointsPerGame * 100) / 100
             }
         }

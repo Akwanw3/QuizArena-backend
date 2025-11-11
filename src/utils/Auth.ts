@@ -56,7 +56,7 @@ export const generateToken = (payload: IJWTPayload): string => {
     payload, // Data to encode in token
     secret, // Secret key for signing
     {
-      expiresIn: '7d' // Token expires in 7 days
+      expiresIn: '1d' // Token expires in 1 day
     }
   );
   
